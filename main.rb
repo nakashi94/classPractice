@@ -1,0 +1,3 @@
+class Brave
+
+end
