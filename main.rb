@@ -23,25 +23,54 @@ class Brave
   def attack(monster)
     puts "#{@name}の攻撃"
 
-    attack_num = rand(4)
+    attack_type = decision_attack_type
 
-    if attack_num == 0
-      puts "必殺攻撃"
-      damage = calculate_special_attack - monster.defense
-    else
-      puts "通常攻撃"
-      damage = @offense - monster.defense
-    end
+    damage = calculate_damage(target: monster, attack_type: attack_type)
 
-    monster.hp -= damage
+    # ダメージを反映させる
+    cause_damage(target: monster, damage: damage)
     
-    puts "#{monster.name}は#{damage}のダメージを受けた"
     puts "#{monster.name}の残りHPは#{monster.hp}だ"
   end
 
-def calculate_special_attack
-  @offense*SPECIAL_ATTACK_CONSTANT
-end
+  private
+
+    def decision_attack_type
+      attack_num = rand(4)
+      if attack_num == 0
+        puts "必殺攻撃"
+        return "special_attack"
+      else
+        puts "通常攻撃"
+        return "normal_num"
+      end
+    end
+
+    # **paramsで受け取る
+    def calculate_damage(**params)
+      # 変数に格納することで将来ハッシュのキーに変更があった場合でも変更箇所が少なくて済む
+      target = params[:target]
+      attack_type = params[:attack_type]
+
+      if attack_type == "special_attack"
+        return calculate_special_attack - target.defense
+      else
+        return @offense - target.defense
+      end
+    end
+
+    def cause_damage(**params)
+      damage = params[:damage]
+      target = params[:target]
+
+      target.hp -= damage
+      target.hp = 0 if target.hp < 0
+      puts "#{target.name}は#{damage}のダメージを受けた"
+    end
+
+    def calculate_special_attack
+      @offense*SPECIAL_ATTACK_CONSTANT
+    end
 
 end
 
@@ -71,34 +100,69 @@ class Monster
       @transform_flag = true
       transform
     end
+
     puts "#{@name}の攻撃"
-    damage = @offense - brave.defense
-    brave.hp -= damage
-    puts "#{brave.name}は#{damage}を受けた"
+
+    damage = cal_dmg(brave)
+    cause_damage(target: brave, damage: damage)
     puts "#{brave.name}のHPは残り#{brave.hp}だ"
   end
 
   # クラス外から呼び出せないようにする
   private
 
-  # 変身メソッドの定義
-  def transform
-    # 変身後の名前
-    transform_name = "ドラゴン"
+    # 変身メソッドの定義
+    def transform
+      # 変身後の名前
+      transform_name = "ドラゴン"
 
-    # 返信メッセージ
-    puts <<~EOS
-    "#{@name}は怒っている"
-    "#{@name}は#{transform_name}に変身した
-    EOS
+      # 返信メッセージ
+      puts <<~EOS
+      "#{@name}は怒っている"
+      "#{@name}は#{transform_name}に変身した
+      EOS
 
-    @offense *= POWER_UP_RATE
-    @name = transform_name
-  end
+      @offense *= POWER_UP_RATE
+      @name = transform_name
+    end
+
+    def cal_dmg(brave)
+      return @offense - brave.defense
+    end
+
+    def cause_damage(**params)
+      damage = params[:damage]
+      target = params[:target]
+
+      target.hp -= damage
+      target.hp = 0 if target.hp < 0
+      puts "#{target.name}は#{damage}を受けた"
+    end
 
 end
 
-brave = Brave.new(name: "テリー", hp: 500, offense: 300, defense: 100)
+brave = Brave.new(name: "テリー", hp: 500, offense: 150, defense: 100)
 monster = Monster.new(name: "スライム", hp: 250, offense: 200, defense: 100)
-brave.attack(monster)
-monster.attack(brave)
+
+loop do
+  brave.attack(monster)
+
+  break if monster.hp <= 0
+
+  monster.attack(brave)
+
+  break if brave.hp <= 0
+
+end
+
+battle_result = brave.hp > 0
+
+if battle_result
+  exp = (monster.offense + monster.defense) * 2
+  gold = (monster.offense + monster.defense) * 3
+  puts "#{brave.name}は戦いに勝った"
+  puts "#{exp}の経験値と#{gold}ゴールドを獲得した"
+else
+  puts "#{brave.name}は戦いに負けた"
+  puts "目の前が真っ暗になった"
+end
